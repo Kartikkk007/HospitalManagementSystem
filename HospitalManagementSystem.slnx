@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="HospitalManagementSystem.BlazorApp/HospitalManagementSystem.BlazorApp.csproj" Id="b173b914-3464-4486-a001-3e3a8230dd05" />
+  <Project Path="HospitalManagementSystem.Core/HospitalManagementSystem.Core.csproj" />
+  <Project Path="HospitalManagementSystem.Infrastructure/HospitalManagementSystem.Infrastructure.csproj" />
+</Solution>
