@@ -1,0 +1,118 @@
+﻿@page "/patients/registry"
+@using HospitalManagementSystem.Core.Domain.Entities
+@using HospitalManagementSystem.Core.Application.Interfaces
+@inject IPatientService PatientService
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h3 class="card-title mb-0">Patient Registry Master Panel</h3>
+            <button class="btn btn-success btn-sm" @onclick="NavigateToRegister">
+                <i class="bi bi-person-plus-fill"></i> New Registration
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- Search Bar Layout -->
+            <div class="input-group mb-4">
+                <input type="text" class="form-control" placeholder="Search by name or phone number..."
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="HandleSearch" />
+                <button class="btn btn-primary" @onclick="FetchPatients">Search</button>
+            </div>
+
+            @if (patients == null)
+            {
+                <div class="text-center my-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading registry...</span>
+                    </div>
+                </div>
+            }
+            else if (!patients.Any())
+            {
+                <div class="alert alert-info text-center" role="alert">
+                    No patient files found matching the search criteria.
+                </div>
+            }
+            else
+            {
+                <!-- Responsive Data Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Age</th>
+                                <th>Phone Number</th>
+                                <th>Admission State</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var patient in patients)
+                            {
+                                <tr>
+                                    <td><strong>@patient.LastName, @patient.FirstName</strong></td>
+                                    <td>@patient.Age yrs</td>
+                                    <td>@patient.PhoneNumber</td>
+                                    <td>
+                                        <span class="badge @(patient.CurrentAdmissionStatus == Core.Domain.Enums.AdmissionType.IPD ? "bg-warning text-dark" : "bg-info text-dark")">
+                                            @patient.CurrentAdmissionStatus
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (patient.IsCurrentlyAdmitted)
+                                        {
+                                            <span class="badge bg-danger">Admitted</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Outpatient</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-outline-primary btn-sm" @onclick="() => ViewProfile(patient.Id)">
+                                            View Full History
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string searchTerm = string.Empty;
+    private List<Patient>? patients;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchPatients();
+    }
+
+    private async Task FetchPatients()
+    {
+        patients = await PatientService.SearchPatientsAsync(searchTerm);
+    }
+
+    private async Task HandleSearch(KeyboardEventArgs e)
+    {
+        // Triggers the search query asynchronously as the developer types
+        await FetchPatients();
+    }
+
+    private void ViewProfile(Guid id)
+    {
+        NavigationManager.NavigateTo($"/patients/profile/{id}");
+    }
+
+    private void NavigateToRegister()
+    {
+        NavigationManager.NavigateTo("/patients/register");
+    }
+}

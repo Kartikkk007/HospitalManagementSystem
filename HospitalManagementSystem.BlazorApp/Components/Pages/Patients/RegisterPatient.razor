@@ -1,0 +1,84 @@
+﻿@page "/patients/register"
+@using HospitalManagementSystem.Core.Domain.Entities
+@using HospitalManagementSystem.Core.Domain.Enums
+@using HospitalManagementSystem.Core.Application.Interfaces
+@inject IPatientService PatientService
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="card-title mb-0">Patient Intake Registration</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="@newPatient" OnValidSubmit="HandleRegistration">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label font-weight-bold">First Name</label>
+                        <InputText class="form-control" @bind-Value="newPatient.FirstName" placeholder="Enter first name" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label font-weight-bold">Last Name</label>
+                        <InputText class="form-control" @bind-Value="newPatient.LastName" placeholder="Enter last name" />
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label font-weight-bold">Age</label>
+                        <InputNumber class="form-control" @bind-Value="newPatient.Age" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label font-weight-bold">Phone Number</label>
+                        <InputText class="form-control" @bind-Value="newPatient.PhoneNumber" placeholder="e.g., +1234567890" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label font-weight-bold">Intake Admission Type</label>
+                        <InputSelect class="form-control" @bind-Value="newPatient.CurrentAdmissionStatus">
+                            @foreach (var type in Enum.GetValues<AdmissionType>())
+                            {
+                                <option value="@type">@type</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Medical History Summary</label>
+                    <InputTextArea class="form-control" @bind-Value="newPatient.MedicalHistorySummary" rows="3" placeholder="Enter relevant prior conditions or symptoms..." />
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+                    <button type="submit" class="btn btn-success">Register Patient</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Patient newPatient = new Patient();
+
+    private async Task HandleRegistration()
+    {
+        // Set basic flags before saving
+        if (newPatient.CurrentAdmissionStatus == AdmissionType.IPD)
+        {
+            newPatient.IsCurrentlyAdmitted = true;
+        }
+
+        await PatientService.RegisterPatientAsync(newPatient);
+        
+        // After successfully registering, redirect to a dashboard or list view
+        NavigationManager.NavigateTo("/patients/registry");
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+}

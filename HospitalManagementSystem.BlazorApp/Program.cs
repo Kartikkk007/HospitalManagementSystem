@@ -40,6 +40,7 @@ namespace HospitalManagementSystem.BlazorApp
                     connectionString,
                     b => b.MigrationsAssembly("HospitalManagementSystem.Infrastructure")
                 ));
+            builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IPatientService, HospitalManagementSystem.Infrastructure.Services.PatientService>();
 
             // 4. Bound Identity to use the single consolidated HospitalDbContext
             builder.Services.AddIdentityCore<ApplicationUser>(options =>
