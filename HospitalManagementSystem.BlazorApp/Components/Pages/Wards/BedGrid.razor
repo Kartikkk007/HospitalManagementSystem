@@ -1,0 +1,67 @@
+﻿@using HospitalManagementSystem.Core.Domain.Entities
+
+<div class="row g-3">
+    @if (Beds == null || !Beds.Any())
+    {
+        <div class="col-12">
+            <div class="alert alert-warning text-center" role="alert">
+                No beds currently configured in this ward.
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var bed in Beds)
+        {
+            <div class="col-md-4 col-lg-3">
+                <div class="card h-100 shadow-sm border-2 @(bed.IsOccupied ? "border-danger bg-light" : "border-success")">
+                    <div class="card-header d-flex justify-content-between align-items-center @(bed.IsOccupied ? "bg-danger text-white" : "bg-success text-white")">
+                        <h6 class="mb-0 font-weight-bold">@bed.BedNumber</h6>
+                        <span class="badge @(bed.IsOccupied ? "bg-dark" : "bg-light text-dark")">
+                            @(bed.IsOccupied ? "Occupied" : "Available")
+                        </span>
+                    </div>
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <div>
+                            <p class="card-text mb-1"><strong>Ward:</strong> @bed.WardName</p>
+                            <p class="card-text mb-1"><strong>Rate:</strong> ₹@bed.DailyRate/day</p>
+                            <hr class="my-2" />
+                            @if (bed.IsOccupied && bed.Occupant != null)
+                            {
+                                <p class="card-text mb-0 text-danger">
+                                    <strong>Patient:</strong> @bed.Occupant.FirstName @bed.Occupant.LastName
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="card-text mb-0 text-muted">
+                                    <em>Ready for intake</em>
+                                </p>
+                            }
+                        </div>
+                        <div class="mt-3">
+                            @if (bed.IsOccupied)
+                            {
+                                <button class="btn btn-outline-danger btn-sm w-100" @onclick="() => OnDischargeClicked.InvokeAsync(bed)">
+                                    Discharge Patient
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-primary btn-sm w-100" @onclick="() => OnAllocateClicked.InvokeAsync(bed)">
+                                    Allocate Bed
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public List<Bed>? Beds { get; set; }
+    [Parameter] public EventCallback<Bed> OnAllocateClicked { get; set; }
+    [Parameter] public EventCallback<Bed> OnDischargeClicked { get; set; }
+}

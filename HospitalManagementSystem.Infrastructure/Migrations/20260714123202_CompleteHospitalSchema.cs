@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace HospitalManagementSystem.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+  
     public partial class CompleteHospitalSchema : Migration
     {
-        /// <inheritdoc />
+        
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(

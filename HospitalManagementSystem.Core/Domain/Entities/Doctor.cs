@@ -9,7 +9,7 @@ public class Doctor
     public Guid Id { get; set; } = Guid.NewGuid();
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string Specialty { get; set; } = string.Empty; // e.g., "Cardiology", "Pediatrics"
+    public string Specialty { get; set; } = string.Empty; 
     public decimal ConsultationFee { get; set; }
     public string ContactNumber { get; set; } = string.Empty;
 

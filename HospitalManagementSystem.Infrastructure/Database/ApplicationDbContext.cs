@@ -7,12 +7,12 @@ namespace HospitalManagementSystem.Infrastructure.Database;
 
 public class HospitalDbContext : IdentityDbContext<ApplicationUser>
 {
-    // Using the base DbContextOptions parameter explicitly fixes CS1729
+
     public HospitalDbContext(DbContextOptions options) : base(options)
     {
     }
 
-    // Using standard auto-properties with default! cleanly avoids the CS0103 'Set' error
+
     public DbSet<Patient> Patients { get; set; } = default!;
     public DbSet<Doctor> Doctors { get; set; } = default!;
     public DbSet<Bed> Beds { get; set; } = default!;

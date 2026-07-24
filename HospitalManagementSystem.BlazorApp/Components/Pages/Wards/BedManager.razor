@@ -1,0 +1,119 @@
+﻿@page "/wards/beds"
+@using HospitalManagementSystem.BlazorApp.Components.Pages.Wards
+@using HospitalManagementSystem.Core.Domain.Entities
+@using HospitalManagementSystem.Core.Application.Interfaces
+@inject IAdmissionService AdmissionService
+@inject IPatientService PatientService
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>IPD Ward & Bed Allocation Map</h2>
+            <p class="text-muted mb-0">Real-time occupancy status across hospital wards</p>
+        </div>
+        <button class="btn btn-outline-secondary" @onclick="LoadDataAsync">
+            Refresh Grid
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading ward layout...</span>
+            </div>
+        </div>
+    }
+    else
+    { 
+        <BedGrid Beds="beds" 
+                 OnAllocateClicked="HandleOpenAllocateModal" 
+                 OnDischargeClicked="HandleDischargeAsync" />
+    }
+</div>
+
+
+@if (showAllocateModal && selectedBed != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Allocate Bed @selectedBed.BedNumber</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Select Unassigned Patient</label>
+                        <select class="form-select" @bind="selectedPatientId">
+                            <option value="@Guid.Empty">-- Select Patient --</option>
+                            @if (availablePatients != null)
+                            {
+                                @foreach (var patient in availablePatients)
+                                {
+                                    <option value="@patient.Id">@patient.FirstName @patient.LastName (@patient.PhoneNumber)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-success" disabled="@(selectedPatientId == Guid.Empty)" @onclick="ConfirmAllocationAsync">Confirm Allocation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Bed>? beds;
+    private List<Patient>? availablePatients;
+    private bool isLoading = true;
+    private bool showAllocateModal = false;
+    private Bed? selectedBed;
+    private Guid selectedPatientId = Guid.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        beds = await AdmissionService.GetVolatileBedMapAsync();
+        var allPatients = await PatientService.SearchPatientsAsync("");
+        // Filter patients who are not currently assigned to an active bed
+        availablePatients = allPatients.Where(p => !p.IsCurrentlyAdmitted).ToList();
+        isLoading = false;
+    }
+
+    private void HandleOpenAllocateModal(Bed bed)
+    {
+        selectedBed = bed;
+        selectedPatientId = Guid.Empty;
+        showAllocateModal = true;
+    }
+
+    private async Task ConfirmAllocationAsync()
+    {
+        if (selectedBed != null && selectedPatientId != Guid.Empty)
+        {
+            await AdmissionService.AllocateBedAsync(selectedBed.Id, selectedPatientId);
+            showAllocateModal = false;
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task HandleDischargeAsync(Bed bed)
+    {
+        await AdmissionService.DischargePatientFromBedAsync(bed.Id);
+        await LoadDataAsync();
+    }
+
+    private void CloseModal()
+    {
+        showAllocateModal = false;
+    }
+}

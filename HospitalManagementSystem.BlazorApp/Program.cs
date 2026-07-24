@@ -1,8 +1,8 @@
 using HospitalManagementSystem.BlazorApp.Components;
 using HospitalManagementSystem.BlazorApp.Components.Account;
-using HospitalManagementSystem.Infrastructure.Identity;
-// 1. Added explicit using for your consolidated Infrastructure database layer
+using HospitalManagementSystem.Core.Domain.Entities;
 using HospitalManagementSystem.Infrastructure.Database;
+using HospitalManagementSystem.Infrastructure.Identity;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -30,25 +30,29 @@ namespace HospitalManagementSystem.BlazorApp
             })
                 .AddIdentityCookies();
 
-            // 2. Fetch the connection string safely
+
+              
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-            // 3. Registered the unified context pointing to the Infrastructure migrations assembly
+          
+            
+            
+            //  unified context pointing to the Infrastructure migrations assembly
             builder.Services.AddDbContext<HospitalDbContext>(options =>
                 options.UseSqlServer(
                     connectionString,
                     b => b.MigrationsAssembly("HospitalManagementSystem.Infrastructure")
                 ));
             builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IPatientService, HospitalManagementSystem.Infrastructure.Services.PatientService>();
+            builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IAdmissionService, HospitalManagementSystem.Infrastructure.Services.AdmissionService>();
 
-            // 4. Bound Identity to use the single consolidated HospitalDbContext
             builder.Services.AddIdentityCore<ApplicationUser>(options =>
             {
                 options.SignIn.RequireConfirmedAccount = true;
                 options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
             })
-                .AddEntityFrameworkStores<HospitalDbContext>() // <-- Swapped to unified context
+                .AddEntityFrameworkStores<HospitalDbContext>()
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
 
@@ -56,7 +60,7 @@ namespace HospitalManagementSystem.BlazorApp
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseMigrationsEndPoint();
@@ -76,10 +80,26 @@ namespace HospitalManagementSystem.BlazorApp
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
-            // Add additional endpoints required by the Identity /Account Razor components.
+
             app.MapAdditionalIdentityEndpoints();
 
-            app.Run();
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<HospitalDbContext>();
+                if (!dbContext.Beds.Any())
+                {
+                    dbContext.Beds.AddRange(
+                        new Bed { WardName = "ICU", BedNumber = "ICU-101", DailyRate = 2500 },
+                        new Bed { WardName = "ICU", BedNumber = "ICU-102", DailyRate = 2500 },
+                        new Bed { WardName = "General Ward A", BedNumber = "G-201", DailyRate = 800 },
+                        new Bed { WardName = "General Ward A", BedNumber = "G-202", DailyRate = 800 },
+                        new Bed { WardName = "Pediatrics", BedNumber = "P-301", DailyRate = 1200 }
+                    );
+                    dbContext.SaveChanges();
+                }
+
+                app.Run();
+            }
         }
     }
 }
