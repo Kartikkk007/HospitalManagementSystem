@@ -1,0 +1,96 @@
+﻿@page "/appointments/book"
+@using HospitalManagementSystem.Core.Domain.Entities
+@using HospitalManagementSystem.Core.Application.Interfaces
+@inject IAppointmentService AppointmentService
+@inject IPatientService PatientService
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="card-title mb-0">Schedule OPD Appointment</h3>
+        </div>
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center my-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading options...</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="@newAppointment" OnValidSubmit="HandleBookingAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Select Patient</label>
+                            <InputSelect class="form-select" @bind-Value="newAppointment.PatientId">
+                                <option value="@Guid.Empty">-- Choose Patient --</option>
+                                @foreach (var patient in patients)
+                                {
+                                    <option value="@patient.Id">@patient.FirstName @patient.LastName (@patient.PhoneNumber)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Select Attending Doctor</label>
+                            <InputSelect class="form-select" @bind-Value="newAppointment.DoctorId">
+                                <option value="@Guid.Empty">-- Choose Doctor --</option>
+                                @foreach (var doctor in doctors)
+                                {
+                                    <option value="@doctor.Id">Dr. @doctor.FirstName @doctor.LastName (@doctor.Specialty)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label font-weight-bold">Appointment Date & Time</label>
+                            <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="newAppointment.AppointmentDate" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+                        <button type="submit" class="btn btn-success" disabled="@(!IsValidSelection)">Confirm Appointment</button>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private Appointment newAppointment = new Appointment { AppointmentDate = DateTime.Now.AddDays(1) };
+    private List<Patient> patients = new();
+    private List<Doctor> doctors = new();
+    private bool isLoading = true;
+
+    private bool IsValidSelection => newAppointment.PatientId != Guid.Empty && newAppointment.DoctorId != Guid.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        patients = await PatientService.SearchPatientsAsync("");
+        doctors = await AppointmentService.GetActiveDoctorsAsync();
+        isLoading = false;
+    }
+
+    private async Task HandleBookingAsync()
+    {
+        if (IsValidSelection)
+        {
+            await AppointmentService.BookAppointmentAsync(newAppointment);
+            NavigationManager.NavigateTo("/appointments/dashboard");
+        }
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+}

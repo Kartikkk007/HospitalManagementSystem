@@ -46,7 +46,7 @@ namespace HospitalManagementSystem.BlazorApp
                 ));
             builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IPatientService, HospitalManagementSystem.Infrastructure.Services.PatientService>();
             builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IAdmissionService, HospitalManagementSystem.Infrastructure.Services.AdmissionService>();
-
+            builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IAppointmentService, HospitalManagementSystem.Infrastructure.Services.AppointmentService>();
             builder.Services.AddIdentityCore<ApplicationUser>(options =>
             {
                 options.SignIn.RequireConfirmedAccount = true;
@@ -86,6 +86,7 @@ namespace HospitalManagementSystem.BlazorApp
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<HospitalDbContext>();
+
                 if (!dbContext.Beds.Any())
                 {
                     dbContext.Beds.AddRange(
@@ -98,8 +99,20 @@ namespace HospitalManagementSystem.BlazorApp
                     dbContext.SaveChanges();
                 }
 
-                app.Run();
-            }
+                if (!dbContext.Doctors.Any())
+                {
+                    dbContext.Doctors.AddRange(
+                      new Doctor { FirstName = "Aman", LastName = "Verma", Specialty = "Cardiology", ConsultationFee = 500, ContactNumber = "+91 9876543210" },
+                      new Doctor { FirstName = "Priya", LastName = "Sharma", Specialty = "Pediatrics", ConsultationFee = 600, ContactNumber = "+91 9876543211" },
+                      new Doctor { FirstName = "Rajesh", LastName = "Gupta", Specialty = "Neurology", ConsultationFee = 800, ContactNumber = "+91 9876543212" }
+                    );
+                    dbContext.SaveChanges();
+                }
+            } // <-- Scope closes cleanly here!
+
+            // 2. Start the Application
+            app.Run();
+        }
         }
     }
-}
+
