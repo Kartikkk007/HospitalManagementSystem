@@ -1,70 +1,117 @@
-﻿@page "/wards/beds"
+@page "/wards/beds"
+@attribute [Authorize(Roles = "Admin,Nurse,Doctor")]
 @using HospitalManagementSystem.BlazorApp.Components.Pages.Wards
 @using HospitalManagementSystem.Core.Domain.Entities
 @using HospitalManagementSystem.Core.Application.Interfaces
 @inject IAdmissionService AdmissionService
 @inject IPatientService PatientService
+@inject ISnackbar Snackbar
 
-<div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<PageTitle>IPD Ward & Bed Allocation Map - AegisCare HMS</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <!-- Header Banner -->
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
         <div>
-            <h2>IPD Ward & Bed Allocation Map</h2>
-            <p class="text-muted mb-0">Real-time occupancy status across hospital wards</p>
+            <MudText Typo="Typo.h4" Class="fw-bold text-dark">IPD Ward & Bed Map</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Real-time bed occupancy telemetry and intake management across hospital wards.</MudText>
         </div>
-        <button class="btn btn-outline-secondary" @onclick="LoadDataAsync">
-            Refresh Grid
-        </button>
-    </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadDataAsync">
+            Refresh Status
+        </MudButton>
+    </MudStack>
+
+    <!-- Stat Metric Cards -->
+    <MudGrid Spacing="3" Class="mb-4">
+        <MudItem xs="12" sm="4">
+            <MudCard Elevation="1" Class="rounded-xl pa-3">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">TOTAL REGISTERED BEDS</MudText>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@(beds?.Count ?? 0)</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.Grid3x3" />
+                    </MudAvatar>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudCard Elevation="1" Class="rounded-xl pa-3">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">AVAILABLE FOR INTAKE</MudText>
+                        <MudText Typo="Typo.h4" Color="Color.Success" Class="fw-bold">@(beds?.Count(b => !b.IsOccupied) ?? 0)</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    </MudAvatar>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudCard Elevation="1" Class="rounded-xl pa-3">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">CURRENTLY OCCUPIED</MudText>
+                        <MudText Typo="Typo.h4" Color="Color.Error" Class="fw-bold">@(beds?.Count(b => b.IsOccupied) ?? 0)</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Error" Variant="Variant.Filled" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.Hotel" />
+                    </MudAvatar>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
 
     @if (isLoading)
     {
-        <div class="text-center my-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading ward layout...</span>
-            </div>
+        <div class="text-center py-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            <MudText Typo="Typo.body2" Class="mt-2 text-muted">Synchronizing live bed telemetry...</MudText>
         </div>
     }
     else
-    { 
+    {
         <BedGrid Beds="beds" 
                  OnAllocateClicked="HandleOpenAllocateModal" 
                  OnDischargeClicked="HandleDischargeAsync" />
     }
-</div>
+</MudContainer>
 
+<!-- Allocation Modal Dialog -->
+<MudDialog @bind-Visible="showAllocateModal" Options="dialogOptions">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.MeetingRoom" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" Class="fw-bold">Allocate Bed @selectedBed?.BedNumber</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+            Ward: <strong>@selectedBed?.WardName</strong> | Daily Rate: <strong>₹@selectedBed?.DailyRate/day</strong>
+        </MudText>
 
-@if (showAllocateModal && selectedBed != null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Allocate Bed @selectedBed.BedNumber</h5>
-                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label font-weight-bold">Select Unassigned Patient</label>
-                        <select class="form-select" @bind="selectedPatientId">
-                            <option value="@Guid.Empty">-- Select Patient --</option>
-                            @if (availablePatients != null)
-                            {
-                                @foreach (var patient in availablePatients)
-                                {
-                                    <option value="@patient.Id">@patient.FirstName @patient.LastName (@patient.PhoneNumber)</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
-                    <button type="button" class="btn btn-success" disabled="@(selectedPatientId == Guid.Empty)" @onclick="ConfirmAllocationAsync">Confirm Allocation</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+        <MudSelect T="Guid" @bind-Value="selectedPatientId" Label="Select Unassigned Outpatient" Variant="Variant.Outlined"
+                   Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Class="mb-3">
+            <MudSelectItem Value="@Guid.Empty">-- Choose Registered Patient --</MudSelectItem>
+            @if (availablePatients != null)
+            {
+                @foreach (var patient in availablePatients)
+                {
+                    <MudSelectItem Value="@patient.Id">@patient.FirstName @patient.LastName (Phone: @patient.PhoneNumber)</MudSelectItem>
+                }
+            }
+        </MudSelect>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Only unadmitted outpatients are listed.</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseModal" Variant="Variant.Outlined">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(selectedPatientId == Guid.Empty)" OnClick="ConfirmAllocationAsync">
+            Confirm Bed Allocation
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
     private List<Bed>? beds;
@@ -73,6 +120,8 @@
     private bool showAllocateModal = false;
     private Bed? selectedBed;
     private Guid selectedPatientId = Guid.Empty;
+
+    private readonly DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,7 +133,6 @@
         isLoading = true;
         beds = await AdmissionService.GetVolatileBedMapAsync();
         var allPatients = await PatientService.SearchPatientsAsync("");
-        // Filter patients who are not currently assigned to an active bed
         availablePatients = allPatients.Where(p => !p.IsCurrentlyAdmitted).ToList();
         isLoading = false;
     }
@@ -101,6 +149,7 @@
         if (selectedBed != null && selectedPatientId != Guid.Empty)
         {
             await AdmissionService.AllocateBedAsync(selectedBed.Id, selectedPatientId);
+            Snackbar.Add($"Bed {selectedBed.BedNumber} allocated successfully!", Severity.Success);
             showAllocateModal = false;
             await LoadDataAsync();
         }
@@ -109,6 +158,7 @@
     private async Task HandleDischargeAsync(Bed bed)
     {
         await AdmissionService.DischargePatientFromBedAsync(bed.Id);
+        Snackbar.Add($"Patient discharged from Bed {bed.BedNumber}.", Severity.Info);
         await LoadDataAsync();
     }
 

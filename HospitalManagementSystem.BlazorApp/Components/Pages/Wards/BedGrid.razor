@@ -1,64 +1,90 @@
-﻿@using HospitalManagementSystem.Core.Domain.Entities
+@using HospitalManagementSystem.Core.Domain.Entities
 
-<div class="row g-3">
+<MudGrid Spacing="3">
     @if (Beds == null || !Beds.Any())
     {
-        <div class="col-12">
-            <div class="alert alert-warning text-center" role="alert">
-                No beds currently configured in this ward.
-            </div>
-        </div>
+        <MudItem xs="12">
+            <MudPaper Class="pa-8 text-center" Elevation="1">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" Class="mb-3" />
+                <MudText Typo="Typo.h6">No Hospital Beds Configured</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No active beds are currently registered in this ward context.</MudText>
+            </MudPaper>
+        </MudItem>
     }
     else
     {
         @foreach (var bed in Beds)
         {
-            <div class="col-md-4 col-lg-3">
-                <div class="card h-100 shadow-sm border-2 @(bed.IsOccupied ? "border-danger bg-light" : "border-success")">
-                    <div class="card-header d-flex justify-content-between align-items-center @(bed.IsOccupied ? "bg-danger text-white" : "bg-success text-white")">
-                        <h6 class="mb-0 font-weight-bold">@bed.BedNumber</h6>
-                        <span class="badge @(bed.IsOccupied ? "bg-dark" : "bg-light text-dark")">
-                            @(bed.IsOccupied ? "Occupied" : "Available")
-                        </span>
-                    </div>
-                    <div class="card-body d-flex flex-column justify-content-between">
-                        <div>
-                            <p class="card-text mb-1"><strong>Ward:</strong> @bed.WardName</p>
-                            <p class="card-text mb-1"><strong>Rate:</strong> ₹@bed.DailyRate/day</p>
-                            <hr class="my-2" />
-                            @if (bed.IsOccupied && bed.Occupant != null)
-                            {
-                                <p class="card-text mb-0 text-danger">
-                                    <strong>Patient:</strong> @bed.Occupant.FirstName @bed.Occupant.LastName
-                                </p>
-                            }
-                            else
-                            {
-                                <p class="card-text mb-0 text-muted">
-                                    <em>Ready for intake</em>
-                                </p>
-                            }
-                        </div>
-                        <div class="mt-3">
-                            @if (bed.IsOccupied)
-                            {
-                                <button class="btn btn-outline-danger btn-sm w-100" @onclick="() => OnDischargeClicked.InvokeAsync(bed)">
-                                    Discharge Patient
-                                </button>
-                            }
-                            else
-                            {
-                                <button class="btn btn-primary btn-sm w-100" @onclick="() => OnAllocateClicked.InvokeAsync(bed)">
-                                    Allocate Bed
-                                </button>
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <MudItem xs="12" sm="6" md="4" lg="3">
+                <MudCard Elevation="1" Class="rounded-xl h-100 d-flex flex-column justify-space-between border-t-4"
+                         Style="@(bed.IsOccupied ? "border-top: 4px solid var(--mud-palette-error);" : "border-top: 4px solid var(--mud-palette-success);")">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudAvatar Color="@(bed.IsOccupied ? Color.Error : Color.Success)" Variant="Variant.Filled">
+                                <MudIcon Icon="@(bed.IsOccupied ? Icons.Material.Filled.Hotel : Icons.Material.Filled.Check)" Size="Size.Small" />
+                            </MudAvatar>
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.subtitle1" Class="fw-bold">Bed @bed.BedNumber</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@bed.WardName</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string" Color="@(bed.IsOccupied ? Color.Error : Color.Success)" Size="Size.Small" Variant="Variant.Filled">
+                                @(bed.IsOccupied ? "Occupied" : "Available")
+                            </MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+
+                    <MudCardContent Class="py-2">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-2">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Daily Ward Rate</MudText>
+                            <MudText Typo="Typo.body2" Class="fw-bold">₹@bed.DailyRate <span style="font-size: 0.75rem;" class="text-muted">/day</span></MudText>
+                        </MudStack>
+
+                        <MudDivider Class="my-2" />
+
+                        @if (bed.IsOccupied && bed.Occupant != null)
+                        {
+                            <MudPaper Class="pa-2 rounded-lg" Style="background-color: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);" Elevation="0">
+                                <MudText Typo="Typo.caption" Color="Color.Error" Class="fw-bold d-block">CURRENT INPATIENT</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Error" />
+                                    <MudText Typo="Typo.body2" Class="fw-semibold">@bed.Occupant.FirstName @bed.Occupant.LastName</MudText>
+                                </MudStack>
+                            </MudPaper>
+                        }
+                        else
+                        {
+                            <MudPaper Class="pa-2 text-center rounded-lg" Style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2);" Elevation="0">
+                                <MudText Typo="Typo.caption" Color="Color.Success" Class="fw-semibold">
+                                    <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Small" Class="vertical-align-middle me-1" />
+                                    Ready for Admission
+                                </MudText>
+                            </MudPaper>
+                        }
+                    </MudCardContent>
+
+                    <MudCardActions Class="pa-3">
+                        @if (bed.IsOccupied)
+                        {
+                            <MudButton FullWidth="true" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.ExitToApp" OnClick="() => OnDischargeClicked.InvokeAsync(bed)">
+                                Discharge Patient
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.AddCircle" OnClick="() => OnAllocateClicked.InvokeAsync(bed)">
+                                Allocate Bed
+                            </MudButton>
+                        }
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
         }
     }
-</div>
+</MudGrid>
 
 @code {
     [Parameter] public List<Bed>? Beds { get; set; }

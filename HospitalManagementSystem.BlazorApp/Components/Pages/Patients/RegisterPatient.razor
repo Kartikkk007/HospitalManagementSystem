@@ -1,84 +1,97 @@
-﻿@page "/patients/register"
+@page "/patients/register"
+@attribute [Authorize(Roles = "Admin,Nurse,Receptionist")]
 @using HospitalManagementSystem.Core.Domain.Entities
 @using HospitalManagementSystem.Core.Domain.Enums
 @using HospitalManagementSystem.Core.Application.Interfaces
 @inject IPatientService PatientService
 @inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
 
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h3 class="card-title mb-0">Patient Intake Registration</h3>
-        </div>
-        <div class="card-body">
+<PageTitle>Patient Intake Registration - AegisCare HMS</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-2">
+    <!-- Header -->
+    <div class="mb-4">
+        <MudText Typo="Typo.h4" Class="fw-bold text-dark">Patient Intake Registration</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Create a new master patient file in the AegisCare hospital system.</MudText>
+    </div>
+
+    <!-- Registration Card -->
+    <MudCard Elevation="1" Class="rounded-xl pa-4 pa-md-6">
+        <MudCardContent>
             <EditForm Model="@newPatient" OnValidSubmit="HandleRegistration">
                 <DataAnnotationsValidator />
-                <ValidationSummary class="text-danger" />
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label font-weight-bold">First Name</label>
-                        <InputText class="form-control" @bind-Value="newPatient.FirstName" placeholder="Enter first name" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label font-weight-bold">Last Name</label>
-                        <InputText class="form-control" @bind-Value="newPatient.LastName" placeholder="Enter last name" />
-                    </div>
-                </div>
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="fw-bold mb-3">
+                    DEMOGRAPHIC DETAILS
+                </MudText>
 
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label font-weight-bold">Age</label>
-                        <InputNumber class="form-control" @bind-Value="newPatient.Age" />
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label font-weight-bold">Phone Number</label>
-                        <InputText class="form-control" @bind-Value="newPatient.PhoneNumber" placeholder="e.g., +1234567890" />
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label font-weight-bold">Intake Admission Type</label>
-                        <InputSelect class="form-control" @bind-Value="newPatient.CurrentAdmissionStatus">
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="newPatient.FirstName" Label="First Name" Variant="Variant.Outlined"
+                                      Required="true" RequiredError="First name is required" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="newPatient.LastName" Label="Last Name" Variant="Variant.Outlined"
+                                      Required="true" RequiredError="Last name is required" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="newPatient.Age" Label="Age (Years)" Variant="Variant.Outlined"
+                                         Min="0" Max="130" Required="true" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="newPatient.PhoneNumber" Label="Contact Phone Number" Variant="Variant.Outlined"
+                                      Required="true" RequiredError="Phone number is required" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="AdmissionType" @bind-Value="newPatient.CurrentAdmissionStatus" Label="Initial Category"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter">
                             @foreach (var type in Enum.GetValues<AdmissionType>())
                             {
-                                <option value="@type">@type</option>
+                                <MudSelectItem Value="@type">@type</MudSelectItem>
                             }
-                        </InputSelect>
-                    </div>
-                </div>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
 
-                <div class="mb-3">
-                    <label class="form-label font-weight-bold">Medical History Summary</label>
-                    <InputTextArea class="form-control" @bind-Value="newPatient.MedicalHistorySummary" rows="3" placeholder="Enter relevant prior conditions or symptoms..." />
-                </div>
+                <MudDivider Class="my-6" />
 
-                <div class="d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
-                    <button type="submit" class="btn btn-success">Register Patient</button>
-                </div>
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="fw-bold mb-3">
+                    INTAKE CLINICAL SUMMARY
+                </MudText>
+
+                <MudTextField @bind-Value="newPatient.MedicalHistorySummary" Label="Medical History Summary & Known Allergies"
+                              Variant="Variant.Outlined" Lines="4" Placeholder="Document pre-existing conditions, active medications, or allergies..." />
+
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="3" Class="mt-6">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.CheckCircle">
+                        Complete Registration
+                    </MudButton>
+                </MudStack>
             </EditForm>
-        </div>
-    </div>
-</div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
 
 @code {
     private Patient newPatient = new Patient();
 
     private async Task HandleRegistration()
     {
-     
         if (newPatient.CurrentAdmissionStatus == AdmissionType.IPD)
         {
             newPatient.IsCurrentlyAdmitted = true;
         }
 
         await PatientService.RegisterPatientAsync(newPatient);
-        
-        // After successfully registering, redirect to a dashboard or list view
+        Snackbar.Add("Patient registered successfully!", Severity.Success);
         NavigationManager.NavigateTo("/patients/registry");
     }
 
     private void Cancel()
     {
-        NavigationManager.NavigateTo("/");
+        NavigationManager.NavigateTo("/patients/registry");
     }
 }

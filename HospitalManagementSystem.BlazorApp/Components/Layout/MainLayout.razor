@@ -1,23 +1,116 @@
 @inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
+<MudThemeProvider Theme="_hospitalTheme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <!-- Top App Bar -->
+    <MudAppBar Elevation="1" Color="Color.Surface" Class="border-b border-solid border-slate-200 px-4">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ms-2">
+            <MudIcon Icon="@Icons.Material.Filled.LocalHospital" Color="Color.Primary" Size="Size.Medium" />
+            <MudText Typo="Typo.h6" Class="fw-bold text-dark">
+                AegisCare<span style="color: var(--mud-palette-primary);">HMS</span>
+            </MudText>
+        </MudStack>
+
+        <MudSpacer />
+
+        <!-- Status Pill -->
+        <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Class="d-none d-sm-inline-flex me-4">
+            System Operational
+        </MudChip>
+
+        <!-- User Authentication Info -->
+        <AuthorizeView>
+            <Authorized>
+                <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                    <ActivatorContent>
+                        <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium" Icon="@Icons.Material.Filled.Person">
+                            @context.User.Identity?.Name
+                        </MudChip>
+                    </ActivatorContent>
+                    <ChildContent>
+                        <MudMenuItem Icon="@Icons.Material.Filled.ManageAccounts" Href="Account/Manage">Manage Account</MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">Sign Out</MudMenuItem>
+                    </ChildContent>
+                </MudMenu>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Login" Href="Account/Login">
+                    Sign In
+                </MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <!-- Sidebar Navigation Drawer -->
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Responsive" Color="Color.Dark">
         <NavMenu />
-    </div>
+    </MudDrawer>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+    <!-- Main Content Body -->
+    <MudMainContent Class="pt-16 px-4 px-md-6 pb-8" Style="background-color: #f8fafc; min-height: 100vh;">
+        @Body
+    </MudMainContent>
+</MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">??</span>
 </div>
+
+@code {
+    @using HospitalManagementSystem.BlazorApp.Services
+    [Inject] private CustomJwtAuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthStateProvider.MarkUserAsLoggedOutAsync();
+        NavigationManager.NavigateTo("/Account/Login");
+    }
+
+    private readonly MudTheme _hospitalTheme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#0284c7",
+            Secondary = "#0f766e",
+            Success = "#10b981",
+            Info = "#3b82f6",
+            Warning = "#f59e0b",
+            Error = "#ef4444",
+            Background = "#f8fafc",
+            Surface = "#ffffff",
+            AppbarBackground = "#ffffff",
+            AppbarText = "#1e293b",
+            DrawerBackground = "#0f172a",
+            DrawerText = "#94a3b8",
+            DrawerIcon = "#64748b"
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
+            {
+                FontFamily = new[] { "Plus Jakarta Sans", "Roboto", "sans-serif" }
+            }
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DefaultBorderRadius = "10px"
+        }
+    };
+}

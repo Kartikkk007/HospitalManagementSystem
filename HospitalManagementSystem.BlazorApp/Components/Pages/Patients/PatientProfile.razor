@@ -1,0 +1,182 @@
+@page "/patients/profile/{id:guid}"
+@attribute [Authorize(Roles = "Admin,Doctor,Nurse")]
+@using HospitalManagementSystem.Core.Domain.Entities
+@using HospitalManagementSystem.Core.Application.Interfaces
+@inject IPatientService PatientService
+@inject IAppointmentService AppointmentService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Patient Profile & History - AegisCare HMS</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-2">
+    <!-- Back Button & Header -->
+    <div class="mb-4">
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="NavigateBack" Class="mb-3">
+            Back to Registry
+        </MudButton>
+        <MudText Typo="Typo.h4" Class="fw-bold text-dark">Patient Medical History File</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Unified medical record, diagnoses log, and digital prescription history.</MudText>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            <MudText Typo="Typo.body2" Class="mt-2 text-muted">Retrieving patient medical record...</MudText>
+        </div>
+    }
+    else if (patient == null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="rounded-xl">
+            Patient record not found or could not be loaded.
+        </MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="4">
+            <!-- Left Side: Demographics Card -->
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="1" Class="rounded-xl pa-4 text-center">
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large" Class="mx-auto mb-3" Style="width: 72px; height: 72px; font-size: 1.75rem;">
+                        @patient.FirstName.FirstOrDefault()@patient.LastName.FirstOrDefault()
+                    </MudAvatar>
+                    <MudText Typo="Typo.h5" Class="fw-bold">@patient.LastName, @patient.FirstName</MudText>
+                    <MudChip T="string" Color="@(patient.IsCurrentlyAdmitted ? Color.Error : Color.Success)"
+                             Variant="Variant.Filled" Size="Size.Small" Class="my-2">
+                        @(patient.IsCurrentlyAdmitted ? "Admitted Inpatient" : "Active Outpatient")
+                    </MudChip>
+
+                    <MudDivider Class="my-4" />
+
+                    <MudStack Spacing="2" Class="text-start">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Age / Year:</MudText>
+                            <MudText Typo="Typo.body2" Class="fw-bold">@patient.Age <span class="text-muted" style="font-size: 0.75rem;">yrs</span></MudText>
+                        </MudStack>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Phone:</MudText>
+                            <MudText Typo="Typo.body2" Class="fw-bold">@patient.PhoneNumber</MudText>
+                        </MudStack>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Admission Category:</MudText>
+                            <MudChip T="string" Color="@(patient.CurrentAdmissionStatus == Core.Domain.Enums.AdmissionType.IPD ? Color.Warning : Color.Info)"
+                                     Variant="Variant.Filled" Size="Size.Small">
+                                @patient.CurrentAdmissionStatus
+                            </MudChip>
+                        </MudStack>
+                    </MudStack>
+
+                    <MudDivider Class="my-4" />
+
+                    <div class="text-start">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">INTAKE SUMMARY:</MudText>
+                        <MudPaper Class="pa-3 rounded-lg" Style="background-color: #f8fafc;" Elevation="0">
+                            <MudText Typo="Typo.body2" Color="Color.Dark" Style="font-style: italic;">
+                                @(string.IsNullOrWhiteSpace(patient.MedicalHistorySummary) ? "No intake summary documented." : patient.MedicalHistorySummary)
+                            </MudText>
+                        </MudPaper>
+                    </div>
+                </MudCard>
+            </MudItem>
+
+            <!-- Right Side: Medical Encounters Timeline -->
+            <MudItem xs="12" md="8">
+                <MudCard Elevation="1" Class="rounded-xl pa-4 pa-md-6">
+                    <MudText Typo="Typo.h6" Class="fw-bold mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Timeline" Color="Color.Primary" Size="Size.Small" Class="vertical-align-middle me-1" />
+                        Clinical Consultation Timeline
+                    </MudText>
+
+                    @if (history == null || !history.Any())
+                    {
+                        <div class="text-center py-8">
+                            <MudAvatar Color="Color.Info" Variant="Variant.Filled" Size="Size.Medium" Class="mx-auto mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.EventBusy" />
+                            </MudAvatar>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">No clinical appointments or check-ins recorded for this patient.</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudTimeline TimelinePosition="TimelinePosition.Start">
+                            @foreach (var apt in history)
+                            {
+                                <MudTimelineItem Color="@(apt.Status == "Completed" ? Color.Success : Color.Info)" Size="Size.Medium">
+                                    <MudCard Elevation="0" Class="pa-3 rounded-xl mb-3" Style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                                            <MudText Typo="Typo.subtitle2" Class="fw-bold">
+                                                Consultation Encounter
+                                            </MudText>
+                                            <MudChip T="string" Color="@(apt.Status == "Completed" ? Color.Success : Color.Info)" Size="Size.Small" Variant="Variant.Filled">
+                                                @apt.Status
+                                            </MudChip>
+                                        </MudStack>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-2">
+                                            Date: <strong>@apt.AppointmentDate.ToString("f")</strong> | Specialist: <strong>Dr. @(apt.Doctor?.FirstName) @(apt.Doctor?.LastName) (@(apt.Doctor?.Specialty))</strong>
+                                        </MudText>
+
+                                        @if (apt.Status == "Completed")
+                                        {
+                                            <MudGrid Spacing="2" Class="mt-2 pt-2 border-t border-solid border-slate-200">
+                                                <MudItem xs="12" sm="6">
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">Symptoms / Complaints:</MudText>
+                                                    <MudPaper Class="pa-2 rounded-lg mt-1" Style="background-color: #ffffff; border: 1px solid #e2e8f0;" Elevation="0">
+                                                        <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(apt.Symptoms) ? "Not specified." : apt.Symptoms)</MudText>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="12" sm="6">
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">Diagnosis:</MudText>
+                                                    <MudPaper Class="pa-2 rounded-lg mt-1" Style="background-color: #ffffff; border: 1px solid #e2e8f0;" Elevation="0">
+                                                        <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(apt.Diagnosis) ? "Not specified." : apt.Diagnosis)</MudText>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="12">
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">Prescribed Medicines & Care:</MudText>
+                                                    <MudPaper Class="pa-3 rounded-lg mt-1" Style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); white-space: pre-line;" Elevation="0">
+                                                        <MudText Typo="Typo.body2" Color="Color.Success" Class="font-monospace">
+                                                            @(string.IsNullOrWhiteSpace(apt.Prescription) ? "No medicines prescribed." : apt.Prescription)
+                                                        </MudText>
+                                                    </MudPaper>
+                                                </MudItem>
+                                            </MudGrid>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-style: italic;">
+                                                Encounter has not been finalized yet.
+                                            </MudText>
+                                        }
+                                    </MudCard>
+                                </MudTimelineItem>
+                            }
+                        </MudTimeline>
+                    }
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private Patient? patient;
+    private List<Appointment>? history;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        patient = await PatientService.GetPatientByIdAsync(Id);
+        if (patient != null)
+        {
+            history = await AppointmentService.GetAppointmentsByPatientAsync(Id);
+        }
+        isLoading = false;
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/patients/registry");
+    }
+}

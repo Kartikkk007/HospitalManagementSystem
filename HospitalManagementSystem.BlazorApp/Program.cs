@@ -1,11 +1,16 @@
 using HospitalManagementSystem.BlazorApp.Components;
 using HospitalManagementSystem.BlazorApp.Components.Account;
+using HospitalManagementSystem.BlazorApp.Services;
 using HospitalManagementSystem.Core.Domain.Entities;
 using HospitalManagementSystem.Infrastructure.Database;
 using HospitalManagementSystem.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using MudBlazor.Services;
+using System.Text;
 
 namespace HospitalManagementSystem.BlazorApp
 {
@@ -19,16 +24,36 @@ namespace HospitalManagementSystem.BlazorApp
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+            builder.Services.AddControllers();
+            builder.Services.AddMudServices();
+
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<IdentityRedirectManager>();
-            builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+            builder.Services.AddScoped<CustomJwtAuthenticationStateProvider>();
+            builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomJwtAuthenticationStateProvider>());
+
+            var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Configuration 'Jwt:Key' is missing.");
+            var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "AegisCareHMS";
+            var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "AegisCareHMSClients";
 
             builder.Services.AddAuthentication(options =>
             {
-                options.DefaultScheme = IdentityConstants.ApplicationScheme;
-                options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
-                .AddIdentityCookies();
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+                };
+            });
 
 
               
@@ -47,11 +72,13 @@ namespace HospitalManagementSystem.BlazorApp
             builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IPatientService, HospitalManagementSystem.Infrastructure.Services.PatientService>();
             builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IAdmissionService, HospitalManagementSystem.Infrastructure.Services.AdmissionService>();
             builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IAppointmentService, HospitalManagementSystem.Infrastructure.Services.AppointmentService>();
+            builder.Services.AddScoped<HospitalManagementSystem.Core.Application.Interfaces.IJwtTokenService, HospitalManagementSystem.Infrastructure.Services.JwtTokenService>();
             builder.Services.AddIdentityCore<ApplicationUser>(options =>
             {
                 options.SignIn.RequireConfirmedAccount = true;
                 options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
             })
+                .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<HospitalDbContext>()
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
@@ -75,8 +102,11 @@ namespace HospitalManagementSystem.BlazorApp
             app.UseHttpsRedirection();
 
             app.UseAntiforgery();
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.MapStaticAssets();
+            app.MapControllers();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
@@ -108,9 +138,49 @@ namespace HospitalManagementSystem.BlazorApp
                     );
                     dbContext.SaveChanges();
                 }
-            } // <-- Scope closes cleanly here!
 
-            // 2. Start the Application
+                // Seed Roles and Users
+                var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+                string[] roles = { "Admin", "Doctor", "Nurse", "Receptionist" };
+                foreach (var role in roles)
+                {
+                    if (!roleManager.RoleExistsAsync(role).GetAwaiter().GetResult())
+                    {
+                        roleManager.CreateAsync(new IdentityRole(role)).GetAwaiter().GetResult();
+                    }
+                }
+
+                var seedUsers = new[]
+                {
+                    new { Email = "admin@hospital.com", Role = "Admin" },
+                    new { Email = "doctor@hospital.com", Role = "Doctor" },
+                    new { Email = "nurse@hospital.com", Role = "Nurse" },
+                    new { Email = "staff@hospital.com", Role = "Receptionist" }
+                };
+
+                foreach (var seedUser in seedUsers)
+                {
+                    var user = userManager.FindByEmailAsync(seedUser.Email).GetAwaiter().GetResult();
+                    if (user == null)
+                    {
+                        user = new ApplicationUser
+                        {
+                            UserName = seedUser.Email,
+                            Email = seedUser.Email,
+                            EmailConfirmed = true
+                        };
+                        var result = userManager.CreateAsync(user, "P@ssword123!").GetAwaiter().GetResult();
+                        if (result.Succeeded)
+                        {
+                            userManager.AddToRoleAsync(user, seedUser.Role).GetAwaiter().GetResult();
+                        }
+                    }
+                }
+            }
+
+            
             app.Run();
         }
         }

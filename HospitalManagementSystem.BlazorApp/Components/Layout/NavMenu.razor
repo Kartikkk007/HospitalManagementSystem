@@ -1,113 +1,96 @@
-@implements IDisposable
-
+@using HospitalManagementSystem.BlazorApp.Services
 @inject NavigationManager NavigationManager
+@inject CustomJwtAuthenticationStateProvider AuthStateProvider
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">HospitalManagementSystem.BlazorApp</a>
-    </div>
-</div>
+<MudNavMenu Class="pa-2" Color="Color.Primary" Rounded="true" Margin="Margin.Dense">
+    <!-- OVERVIEW -->
+    <MudText Typo="Typo.overline" Class="px-3 text-slate-400 mt-2 mb-1" Style="font-size: 0.75rem; letter-spacing: 0.05em;">OVERVIEW</MudText>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" IconColor="Color.Primary">
+        Dashboard Home
+    </MudNavLink>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="patients/register">
-                <span class="bi bi-person-plus-fill-nav-menu" aria-hidden="true"></span> Register Patient
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="patients/registry">
-                <span class="bi bi-person-lines-fill-nav-menu" aria-hidden="true"></span> Patient Registry
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="wards/beds">
-                <span class="bi bi-grid-3x3-gap-fill-nav-menu" aria-hidden="true"></span> Ward Bed Map
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="appointments/book">
-                <span class="bi bi-calendar-plus-fill-nav-menu" aria-hidden="true"></span> Book OPD
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
-            </NavLink>
-        </div>
-
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
+    <!-- CLINICAL & WARDS -->
+    <AuthorizeView Roles="Admin,Doctor,Nurse,Receptionist">
+        <Authorized>
+            <MudText Typo="Typo.overline" Class="px-3 text-slate-400 mt-4 mb-1" Style="font-size: 0.75rem; letter-spacing: 0.05em;">CLINICAL & WARDS</MudText>
             
-            </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
+            <AuthorizeView Roles="Admin,Nurse,Doctor" Context="wardContext">
+                <Authorized>
+                    <MudNavLink Href="wards/beds" Icon="@Icons.Material.Filled.SingleBed" IconColor="Color.Info">
+                        IPD Bed Map
+                    </MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView Roles="Admin,Receptionist" Context="opdContext">
+                <Authorized>
+                    <MudNavLink Href="appointments/book" Icon="@Icons.Material.Filled.CalendarMonth" IconColor="Color.Success">
+                        Book OPD Slot
+                    </MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView Roles="Admin,Doctor" Context="docContext">
+                <Authorized>
+                    <MudNavLink Href="doctor/consultation" Icon="@Icons.Material.Filled.MedicalServices" IconColor="Color.Warning">
+                        Doctor Portal
+                    </MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+
+            <!-- PATIENT MANAGEMENT -->
+            <MudText Typo="Typo.overline" Class="px-3 text-slate-400 mt-4 mb-1" Style="font-size: 0.75rem; letter-spacing: 0.05em;">PATIENTS</MudText>
+
+            <MudNavLink Href="patients/registry" Icon="@Icons.Material.Filled.PeopleAlt" IconColor="Color.Primary">
+                Master Registry
+            </MudNavLink>
+
+            <AuthorizeView Roles="Admin,Nurse,Receptionist" Context="intakeContext">
+                <Authorized>
+                    <MudNavLink Href="patients/register" Icon="@Icons.Material.Filled.PersonAddAlt1" IconColor="Color.Secondary">
+                        Patient Intake
+                    </MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+        </Authorized>
+    </AuthorizeView>
+
+    <!-- ADMIN UTILITIES -->
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <MudText Typo="Typo.overline" Class="px-3 text-slate-400 mt-4 mb-1" Style="font-size: 0.75rem; letter-spacing: 0.05em;">ADMINISTRATION</MudText>
+            <MudNavLink Href="counter" Icon="@Icons.Material.Filled.Analytics" IconColor="Color.Inherit">
+                Metrics Counter
+            </MudNavLink>
+            <MudNavLink Href="weather" Icon="@Icons.Material.Filled.Thermostat" IconColor="Color.Inherit">
+                Facility Climate
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+
+    <!-- ACCOUNT -->
+    <MudText Typo="Typo.overline" Class="px-3 text-slate-400 mt-4 mb-1" Style="font-size: 0.75rem; letter-spacing: 0.05em;">SESSION</MudText>
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink OnClick="HandleSignOut" Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error">
+                Sign Out
+            </MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="Account/Login" Icon="@Icons.Material.Filled.Login" IconColor="Color.Primary">
+                Sign In
+            </MudNavLink>
+            <MudNavLink Href="Account/Register" Icon="@Icons.Material.Filled.AppRegistration" IconColor="Color.Secondary">
+                Register
+            </MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu>
 
 @code {
-    private string? currentUrl;
-
-    protected override void OnInitialized()
+    private async Task HandleSignOut()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
+        await AuthStateProvider.MarkUserAsLoggedOutAsync();
+        NavigationManager.NavigateTo("/Account/Login");
     }
 }
-

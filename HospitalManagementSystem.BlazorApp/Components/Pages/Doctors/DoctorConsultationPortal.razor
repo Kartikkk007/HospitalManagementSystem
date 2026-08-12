@@ -1,0 +1,254 @@
+@page "/doctor/consultation"
+@attribute [Authorize(Roles = "Admin,Doctor")]
+@using HospitalManagementSystem.Core.Application.Interfaces
+@using HospitalManagementSystem.Core.Domain.Entities
+@inject IAppointmentService AppointmentService
+@inject IPatientService PatientService
+@inject NavigationManager NavManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Doctor Consultation Portal - AegisCare HMS</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <!-- Header Banner -->
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h4" Class="fw-bold text-dark">Doctor Consultation Portal</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Manage daily OPD queue, record patient diagnoses, and issue digital prescriptions.</MudText>
+        </div>
+        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Icon="@Icons.Material.Filled.VerifiedUser">
+            Active Specialist Session
+        </MudChip>
+    </MudStack>
+
+    <MudGrid Spacing="4">
+        <!-- COLUMN 1: Today's OPD Queue (4 cols) -->
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="1" Class="rounded-xl pa-4" Style="min-height: 75vh;">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudText Typo="Typo.h6" Class="fw-bold">Today's OPD Queue</MudText>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">
+                        @appointments.Count Patients
+                    </MudChip>
+                </MudStack>
+
+                @if (isLoading)
+                {
+                    <div class="text-center py-8">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Medium" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-2">Loading queue...</MudText>
+                    </div>
+                }
+                else if (!appointments.Any())
+                {
+                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="py-8">
+                        No appointments scheduled for today.
+                    </MudText>
+                }
+                else
+                {
+                    <MudList T="Appointment" Class="overflow-y-auto pe-1" Style="max-height: 60vh;">
+                        @foreach (var apt in appointments)
+                        {
+                            var isSelected = selectedAppointment?.Id == apt.Id;
+                            <MudPaper Class="@($"pa-3 mb-2 rounded-lg cursor-pointer transition-all {(isSelected ? "border-2 border-solid border-primary" : "")}")"
+                                      Style="@(isSelected ? "background-color: rgba(2, 132, 199, 0.08);" : "background-color: #f8fafc;")"
+                                      Elevation="0" @onclick="() => SelectAppointment(apt)">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                                    <MudText Typo="Typo.subtitle2" Class="fw-bold">
+                                        @apt.Patient?.FirstName @apt.Patient?.LastName
+                                    </MudText>
+                                    <MudChip T="string" Color="@GetStatusColor(apt.Status)" Size="Size.Small" Variant="Variant.Filled">
+                                        @apt.Status
+                                    </MudChip>
+                                </MudStack>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mt-2">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Time: @apt.AppointmentDate.ToString("t")</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Age: @apt.Patient?.Age yrs</MudText>
+                                </MudStack>
+                            </MudPaper>
+                        }
+                    </MudList>
+                }
+            </MudCard>
+        </MudItem>
+
+        <!-- COLUMN 2: Clinical Workspace (8 cols) -->
+        <MudItem xs="12" md="8">
+            @if (selectedAppointment == null)
+            {
+                <MudPaper Class="pa-12 text-center rounded-xl d-flex flex-column align-items-center justify-content-center"
+                          Style="min-height: 75vh;" Elevation="1">
+                    <MudAvatar Color="Color.Info" Variant="Variant.Filled" Size="Size.Large" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" />
+                    </MudAvatar>
+                    <MudText Typo="Typo.h6" Class="fw-bold">No Patient Selected</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Style="max-width: 360px;">
+                        Select an appointment from the queue on the left to review medical history and begin consultation.
+                    </MudText>
+                </MudPaper>
+            }
+            else
+            {
+                <!-- Patient Profile Summary -->
+                <MudCard Elevation="1" Class="rounded-xl pa-4 mb-4">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <div>
+                            <MudText Typo="Typo.h5" Class="fw-bold text-dark">
+                                @selectedAppointment.Patient?.FirstName @selectedAppointment.Patient?.LastName
+                            </MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Phone: <strong>@selectedAppointment.Patient?.PhoneNumber</strong> |
+                                Category: <MudChip T="string" Color="Color.Info" Size="Size.Small">@selectedAppointment.Patient?.CurrentAdmissionStatus</MudChip>
+                            </MudText>
+                        </div>
+                        <MudStack Row="true" Spacing="2">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                       OnClick="ToggleHistoryTab" StartIcon="@Icons.Material.Filled.History">
+                                @(showHistory ? "Hide History" : "View History")
+                            </MudButton>
+                            @if (selectedAppointment.Status != "Completed")
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.CheckCircle" OnClick="CompleteConsultation">
+                                    Complete Encounter
+                                </MudButton>
+                            }
+                        </MudStack>
+                    </MudStack>
+                </MudCard>
+
+                @if (showHistory)
+                {
+                    <MudCard Elevation="1" Class="rounded-xl pa-4 mb-4" Style="background-color: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="fw-bold mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.MedicalInformation" Size="Size.Small" Class="vertical-align-middle me-1" />
+                            DOCUMENTED INTAKE HISTORY
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Dark">
+                            @(string.IsNullOrWhiteSpace(selectedAppointment.Patient?.MedicalHistorySummary) ? "No intake summary documented." : selectedAppointment.Patient?.MedicalHistorySummary)
+                        </MudText>
+                    </MudCard>
+                }
+
+                <!-- Active Consultation Notes & Prescription -->
+                <MudCard Elevation="1" Class="rounded-xl pa-4 pa-md-6">
+                    <MudText Typo="Typo.h6" Class="fw-bold mb-4">Consultation Notes & Digital Prescription</MudText>
+
+                    <MudGrid Spacing="3" Class="mb-4">
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="clinicalNotes.Symptoms" Label="Symptoms / Chief Complaints"
+                                          Variant="Variant.Outlined" Lines="3" Placeholder="e.g. High fever, headache for 3 days..." />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="clinicalNotes.Diagnosis" Label="Clinical Diagnosis"
+                                          Variant="Variant.Outlined" Lines="3" Placeholder="e.g. Acute Viral Infection..." />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="clinicalNotes.Prescription" Label="Digital Prescription & Care Advice"
+                                          Variant="Variant.Outlined" Lines="4" Placeholder="e.g. Tab Paracetamol 500mg - 1-0-1 after meals (5 days)"
+                                          HelperText="Prescription will be permanently recorded in the patient file." />
+                        </MudItem>
+                    </MudGrid>
+                </MudCard>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private List<Appointment> appointments = new();
+    private Appointment? selectedAppointment;
+    private bool isLoading = true;
+    private bool showHistory = false;
+    private Guid? currentDoctorId = null;
+
+    private ClinicalFormModel clinicalNotes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQueueAsync();
+    }
+
+    private async Task LoadQueueAsync()
+    {
+        isLoading = true;
+        if (AuthStateTask != null)
+        {
+            var authState = await AuthStateTask;
+            var user = authState.User;
+            var email = user.Identity?.Name ?? "";
+
+            var doctors = await AppointmentService.GetActiveDoctorsAsync();
+            var matchedDoc = doctors.FirstOrDefault(d =>
+                !string.IsNullOrEmpty(email) &&
+                (email.Contains(d.LastName, StringComparison.OrdinalIgnoreCase) ||
+                 email.Contains(d.FirstName, StringComparison.OrdinalIgnoreCase)));
+
+            if (matchedDoc != null && !user.IsInRole("Admin"))
+            {
+                currentDoctorId = matchedDoc.Id;
+            }
+        }
+
+        appointments = await AppointmentService.GetTodayAppointmentsAsync(currentDoctorId);
+        isLoading = false;
+    }
+
+    private void SelectAppointment(Appointment apt)
+    {
+        selectedAppointment = apt;
+        showHistory = false;
+        clinicalNotes = new ClinicalFormModel
+        {
+            Symptoms = apt.Symptoms,
+            Diagnosis = apt.Diagnosis,
+            Prescription = apt.Prescription
+        };
+    }
+
+    private void ToggleHistoryTab()
+    {
+        showHistory = !showHistory;
+    }
+
+    private async Task CompleteConsultation()
+    {
+        if (selectedAppointment == null) return;
+
+        var success = await AppointmentService.CompleteAppointmentAsync(
+            selectedAppointment.Id,
+            clinicalNotes.Symptoms,
+            clinicalNotes.Diagnosis,
+            clinicalNotes.Prescription
+        );
+
+        if (success)
+        {
+            selectedAppointment.Status = "Completed";
+            selectedAppointment.Symptoms = clinicalNotes.Symptoms;
+            selectedAppointment.Diagnosis = clinicalNotes.Diagnosis;
+            selectedAppointment.Prescription = clinicalNotes.Prescription;
+            Snackbar.Add("Consultation completed and prescription recorded!", Severity.Success);
+            await LoadQueueAsync();
+        }
+    }
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Scheduled" => Color.Info,
+        "In-Consultation" => Color.Warning,
+        "Completed" => Color.Success,
+        _ => Color.Default
+    };
+
+    public class ClinicalFormModel
+    {
+        public string Symptoms { get; set; } = string.Empty;
+        public string Diagnosis { get; set; } = string.Empty;
+        public string Prescription { get; set; } = string.Empty;
+    }
+}

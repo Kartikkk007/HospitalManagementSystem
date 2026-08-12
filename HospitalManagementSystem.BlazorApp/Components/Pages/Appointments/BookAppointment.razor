@@ -1,91 +1,114 @@
-﻿@page "/appointments/book"
+@page "/appointments/book"
+@attribute [Authorize(Roles = "Admin,Receptionist")]
 @using HospitalManagementSystem.Core.Domain.Entities
 @using HospitalManagementSystem.Core.Application.Interfaces
 @inject IAppointmentService AppointmentService
 @inject IPatientService PatientService
 @inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
 
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h3 class="card-title mb-0">Schedule OPD Appointment</h3>
-        </div>
-        <div class="card-body">
-            @if (isLoading)
-            {
-                <div class="text-center my-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading options...</span>
-                    </div>
-                </div>
-            }
-            else
-            {
+<PageTitle>Schedule OPD Appointment - AegisCare HMS</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-2">
+    <!-- Header -->
+    <div class="mb-4">
+        <MudText Typo="Typo.h4" Class="fw-bold text-dark">Schedule OPD Appointment</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Book a new outpatient clinical consultation slot.</MudText>
+    </div>
+
+    <!-- Booking Card -->
+    <MudCard Elevation="1" Class="rounded-xl pa-4 pa-md-6">
+        @if (isLoading)
+        {
+            <div class="text-center py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                <MudText Typo="Typo.body2" Class="mt-2 text-muted">Retrieving patient & doctor schedules...</MudText>
+            </div>
+        }
+        else
+        {
+            <MudCardContent>
                 <EditForm Model="@newAppointment" OnValidSubmit="HandleBookingAsync">
                     <DataAnnotationsValidator />
-                    <ValidationSummary class="text-danger" />
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label font-weight-bold">Select Patient</label>
-                            <InputSelect class="form-select" @bind-Value="newAppointment.PatientId">
-                                <option value="@Guid.Empty">-- Choose Patient --</option>
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="Guid" @bind-Value="newAppointment.PatientId" Label="Target Registered Patient"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@Guid.Empty">-- Choose Patient --</MudSelectItem>
                                 @foreach (var patient in patients)
                                 {
-                                    <option value="@patient.Id">@patient.FirstName @patient.LastName (@patient.PhoneNumber)</option>
+                                    <MudSelectItem Value="@patient.Id">@patient.FirstName @patient.LastName (@patient.PhoneNumber)</MudSelectItem>
                                 }
-                            </InputSelect>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label font-weight-bold">Select Attending Doctor</label>
-                            <InputSelect class="form-select" @bind-Value="newAppointment.DoctorId">
-                                <option value="@Guid.Empty">-- Choose Doctor --</option>
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="Guid" @bind-Value="newAppointment.DoctorId" Label="Attending Specialist"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@Guid.Empty">-- Choose Specialist --</MudSelectItem>
                                 @foreach (var doctor in doctors)
                                 {
-                                    <option value="@doctor.Id">Dr. @doctor.FirstName @doctor.LastName (@doctor.Specialty)</option>
+                                    <MudSelectItem Value="@doctor.Id">Dr. @doctor.FirstName @doctor.LastName (@doctor.Specialty)</MudSelectItem>
                                 }
-                            </InputSelect>
-                        </div>
-                    </div>
+                            </MudSelect>
+                        </MudItem>
 
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label class="form-label font-weight-bold">Appointment Date & Time</label>
-                            <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="newAppointment.AppointmentDate" />
-                        </div>
-                    </div>
+                        <MudItem xs="12" sm="6">
+                            <MudDatePicker Label="Appointment Date" @bind-Date="appointmentDate" Variant="Variant.Outlined"
+                                           Margin="Margin.Dense" MinDate="DateTime.Today" />
+                        </MudItem>
 
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
-                        <button type="submit" class="btn btn-success" disabled="@(!IsValidSelection)">Confirm Appointment</button>
-                    </div>
+                        <MudItem xs="12" sm="6">
+                            <MudTimePicker Label="Appointment Time" @bind-Time="appointmentTime" Variant="Variant.Outlined"
+                                           Margin="Margin.Dense" AmPm="true" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="3" Class="mt-6">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CalendarMonth" Disabled="@(!IsValidSelection)">
+                            Confirm Appointment
+                        </MudButton>
+                    </MudStack>
                 </EditForm>
-            }
-        </div>
-    </div>
-</div>
+            </MudCardContent>
+        }
+    </MudCard>
+</MudContainer>
 
 @code {
-    private Appointment newAppointment = new Appointment { AppointmentDate = DateTime.Now.AddDays(1) };
+    private Appointment newAppointment = new Appointment();
+    private DateTime? appointmentDate = DateTime.Today.AddDays(1);
+    private TimeSpan? appointmentTime = new TimeSpan(10, 0, 0);
+
     private List<Patient> patients = new();
     private List<Doctor> doctors = new();
     private bool isLoading = true;
 
-    private bool IsValidSelection => newAppointment.PatientId != Guid.Empty && newAppointment.DoctorId != Guid.Empty;
-
     protected override async Task OnInitializedAsync()
     {
+        isLoading = true;
         patients = await PatientService.SearchPatientsAsync("");
         doctors = await AppointmentService.GetActiveDoctorsAsync();
         isLoading = false;
     }
 
+    private bool IsValidSelection => newAppointment.PatientId != Guid.Empty && newAppointment.DoctorId != Guid.Empty;
+
     private async Task HandleBookingAsync()
     {
         if (IsValidSelection)
         {
+            if (appointmentDate.HasValue && appointmentTime.HasValue)
+            {
+                newAppointment.AppointmentDate = appointmentDate.Value.Date + appointmentTime.Value;
+            }
+
             await AppointmentService.BookAppointmentAsync(newAppointment);
-            NavigationManager.NavigateTo("/appointments/dashboard");
+            Snackbar.Add("OPD Appointment booked successfully!", Severity.Success);
+            NavigationManager.NavigateTo("/");
         }
     }
 

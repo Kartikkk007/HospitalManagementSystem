@@ -1,4 +1,4 @@
-﻿using HospitalManagementSystem.Core.Application.Interfaces;
+using HospitalManagementSystem.Core.Application.Interfaces;
 using HospitalManagementSystem.Core.Domain.Entities;
 using HospitalManagementSystem.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
@@ -28,10 +28,10 @@ public class AdmissionService : IAdmissionService
         var bed = await _context.Beds.FindAsync(bedId);
         var patient = await _context.Patients.FindAsync(patientId);
 
-        if (bed == null || patient == null || bed.IsOccupied)
+        if (bed == null || patient == null || bed.IsOccupied || patient.IsCurrentlyAdmitted)
             return false;
 
-        // B logic 
+        // Bed allocation logic 
         bed.OccupantId = patientId;
         patient.IsCurrentlyAdmitted = true;
         patient.CurrentAdmissionStatus = Core.Domain.Enums.AdmissionType.IPD;
@@ -50,6 +50,7 @@ public class AdmissionService : IAdmissionService
         if (bed.Occupant != null)
         {
             bed.Occupant.IsCurrentlyAdmitted = false;
+            bed.Occupant.CurrentAdmissionStatus = Core.Domain.Enums.AdmissionType.OPD;
         }
 
         bed.OccupantId = null;

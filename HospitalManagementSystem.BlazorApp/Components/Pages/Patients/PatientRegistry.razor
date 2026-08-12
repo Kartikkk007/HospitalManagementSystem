@@ -1,109 +1,129 @@
-﻿@page "/patients/registry"
+@page "/patients/registry"
+@attribute [Authorize(Roles = "Admin,Doctor,Nurse,Receptionist")]
 @using HospitalManagementSystem.Core.Domain.Entities
 @using HospitalManagementSystem.Core.Application.Interfaces
 @inject IPatientService PatientService
 @inject NavigationManager NavigationManager
 
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-            <h3 class="card-title mb-0">Patient Registry Master Panel</h3>
-            <button class="btn btn-success btn-sm" @onclick="NavigateToRegister">
-                <i class="bi bi-person-plus-fill"></i> New Registration
-            </button>
-        </div>
-        <div class="card-body">
-            <!-- Search Bar Layout -->
-            <div class="input-group mb-4">
-                <input type="text" class="form-control" placeholder="Search by name or phone number..."
-                       @bind="searchTerm" @bind:event="oninput" @onkeyup="HandleSearch" />
-                <button class="btn btn-primary" @onclick="FetchPatients">Search</button>
-            </div>
+<PageTitle>Patient Master Registry - AegisCare HMS</PageTitle>
 
-            @if (patients == null)
-            {
-                <div class="text-center my-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading registry...</span>
-                    </div>
-                </div>
-            }
-            else if (!patients.Any())
-            {
-                <div class="alert alert-info text-center" role="alert">
-                    No patient files found matching the search criteria.
-                </div>
-            }
-            else
-            {
-           
-                <div class="table-responsive">
-                    <table class="table table-hover table-striped align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Name</th>
-                                <th>Age</th>
-                                <th>Phone Number</th>
-                                <th>Admission State</th>
-                                <th>Status</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var patient in patients)
-                            {
-                                <tr>
-                                    <td><strong>@patient.LastName, @patient.FirstName</strong></td>
-                                    <td>@patient.Age yrs</td>
-                                    <td>@patient.PhoneNumber</td>
-                                    <td>
-                                        <span class="badge @(patient.CurrentAdmissionStatus == Core.Domain.Enums.AdmissionType.IPD ? "bg-warning text-dark" : "bg-info text-dark")">
-                                            @patient.CurrentAdmissionStatus
-                                        </span>
-                                    </td>
-                                    <td>
-                                        @if (patient.IsCurrentlyAdmitted)
-                                        {
-                                            <span class="badge bg-danger">Admitted</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-secondary">Outpatient</span>
-                                        }
-                                    </td>
-                                    <td class="text-center">
-                                        <button class="btn btn-outline-primary btn-sm" @onclick="() => ViewProfile(patient.Id)">
-                                            View Full History
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <!-- Header -->
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h4" Class="fw-bold text-dark">Patient Master Registry</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Search, manage, and view clinical histories for all registered patients.</MudText>
         </div>
-    </div>
-</div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="NavigateToRegister" Size="Size.Medium">
+            New Patient Intake
+        </MudButton>
+    </MudStack>
+
+    <!-- Table Card -->
+    <MudCard Elevation="1" Class="rounded-xl">
+        <MudCardContent Class="pa-4">
+            <MudTable Items="@patients" Loading="@isLoading" Hover="true" Striped="false" Elevation="0"
+                      Filter="new Func<Patient,bool>(FilterFunc)" Class="rounded-lg">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6" Class="fw-bold">Active Patient Records</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="searchString" Placeholder="Search by name, phone..." Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"
+                                  Immediate="true" Margin="Margin.Dense" Variant="Variant.Outlined" Style="max-width: 300px;" />
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Patient Identity</MudTh>
+                    <MudTh>Age</MudTh>
+                    <MudTh>Contact Phone</MudTh>
+                    <MudTh>Intake Category</MudTh>
+                    <MudTh>Admission Status</MudTh>
+                    <MudTh Style="text-align: right;">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Identity">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                                @context.FirstName.FirstOrDefault()@context.LastName.FirstOrDefault()
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold">@context.LastName, @context.FirstName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">ID: @context.Id.ToString().Substring(0, 8)...</MudText>
+                            </div>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Age">
+                        <MudText Typo="Typo.body2" Class="fw-semibold">@context.Age <span class="text-muted" style="font-size: 0.8rem;">yrs</span></MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Phone">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText Typo="Typo.body2">@context.PhoneNumber</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Category">
+                        <MudChip T="string" Color="@(context.CurrentAdmissionStatus == Core.Domain.Enums.AdmissionType.IPD ? Color.Warning : Color.Info)"
+                                 Variant="Variant.Filled" Size="Size.Small">
+                            @context.CurrentAdmissionStatus
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        @if (context.IsCurrentlyAdmitted)
+                        {
+                            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Hotel">
+                                Admitted (IPD)
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                                Outpatient
+                            </MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Actions" Style="text-align: right;">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.MedicalInformation" OnClick="() => ViewProfile(context.Id)">
+                            View Record
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body1" Align="Align.Center" Class="py-6 text-muted">No matching patient records found.</MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText Typo="Typo.body1" Align="Align.Center" Class="py-6 text-muted">Loading registry records...</MudText>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 5, 10, 25, 50 }" />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
 
 @code {
-    private string searchTerm = string.Empty;
-    private List<Patient>? patients;
+    private string searchString = "";
+    private List<Patient> patients = new();
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        await FetchPatients();
+        isLoading = true;
+        patients = await PatientService.SearchPatientsAsync("");
+        isLoading = false;
     }
 
-    private async Task FetchPatients()
+    private bool FilterFunc(Patient patient)
     {
-        patients = await PatientService.SearchPatientsAsync(searchTerm);
-    }
-
-    private async Task HandleSearch(KeyboardEventArgs e)
-    {
-     
-        await FetchPatients();
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (patient.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (patient.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (patient.PhoneNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
     }
 
     private void ViewProfile(Guid id)
